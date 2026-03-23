@@ -35,14 +35,14 @@ halyard:
 
 # Configure your Docker registries here
 dockerRegistries:
-- name: ecr-mgmt-west
-  address: https://559436771417.dkr.ecr.us-west-2.amazonaws.com
+- name: my-ecr-registry
+  address: https://123456789012.dkr.ecr.us-east-1.amazonaws.com
   username: AWS
   password: /opt/passwords/ecr-registry.pass
-  #- name: ecr-west 
-#  address: 559436771417.dkr.ecr.us-west-2.amazonaws.com
-#  username: AWS
-#  password-command: aws --region us-west-2 ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken' | base64 -d | sed 's/^AWS://'
+  # - name: ecr-secondary
+  #   address: https://123456789012.dkr.ecr.us-west-2.amazonaws.com
+  #   username: AWS
+  #   password-command: aws --region us-west-2 ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken' | base64 -d | sed 's/^AWS://'
 # - name: gcr
 #   address: https://gcr.io
 #   username: _json_key
@@ -113,7 +113,7 @@ nodeSelector: {}
 # Redis password to use for the in-cluster redis service
 # Redis is not exposed publically
 redis:
-  password: password
+  password: changeme-redis-password
   nodeSelector: {}
   cluster:
     enabled: false
@@ -128,8 +128,8 @@ minio:
   enabled: true
   imageTag: RELEASE.2018-06-09T02-18-09Z
   serviceType: ClusterIP
-  accessKey: spinnakeradmin
-  secretKey: spinnakeradmin
+  accessKey: changeme-minio-access
+  secretKey: changeme-minio-password
   bucket: "spinnaker"
   nodeSelector: {}
 # Uncomment if you don't want to create a PVC for minio

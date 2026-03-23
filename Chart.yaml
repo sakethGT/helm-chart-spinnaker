@@ -1,19 +1,27 @@
-apiVersion: v1
-description: Open source, multi-cloud continuous delivery platform for releasing software changes with high velocity and confidence.
+apiVersion: v2
 name: spinnaker
-version: 1.4.0
+description: Production-ready Helm chart for deploying Spinnaker CD platform on Kubernetes
+type: application
+version: 2.0.0
 appVersion: 1.11.6
-home: http://spinnaker.io/
+home: https://spinnaker.io/
 sources:
-- https://github.com/spinnaker
-- https://github.com/viglesiasce/images
+  - https://github.com/spinnaker
 icon: https://pbs.twimg.com/profile_images/669205226994319362/O7OjwPrh_400x400.png
 maintainers:
-- name: viglesiasce
-  email: viglesias@google.com
-- name: lwander
-  email: lwander@google.com
-- name: dwardu89
-  email: hello@dwardu.com
-- name: paulczar
-  email: username.taken@gmail.com
+  - name: sakethgaddam
+    url: https://github.com/sakethGT
+keywords:
+  - spinnaker
+  - continuous-delivery
+  - deployment
+  - kubernetes
+  - halyard
+dependencies:
+  - name: redis
+    version: 17.x.x
+    repository: https://charts.bitnami.com/bitnami
+  - name: minio
+    version: 12.x.x
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled
