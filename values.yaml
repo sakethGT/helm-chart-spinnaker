@@ -34,15 +34,12 @@ halyard:
 #   https://www.spinnaker.io/setup/providers/docker-registry/
 
 # Configure your Docker registries here
-dockerRegistries:
-- name: my-ecr-registry
-  address: https://123456789012.dkr.ecr.us-east-1.amazonaws.com
-  username: AWS
-  password: /opt/passwords/ecr-registry.pass
-  # - name: ecr-secondary
-  #   address: https://123456789012.dkr.ecr.us-west-2.amazonaws.com
-  #   username: AWS
-  #   password-command: aws --region us-west-2 ecr get-authorization-token --output text --query 'authorizationData[].authorizationToken' | base64 -d | sed 's/^AWS://'
+dockerRegistries: []
+# Example ECR configuration:
+# - name: my-ecr-registry
+#   address: https://ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com
+#   username: AWS
+#   password: /opt/passwords/ecr-registry.pass
 # - name: gcr
 #   address: https://gcr.io
 #   username: _json_key
