@@ -1,155 +1,209 @@
-# Spinnaker Chart
+# Spinnaker Helm Chart
 
-[Spinnaker](http://spinnaker.io/) is an open source, multi-cloud continuous delivery platform.
+Production-ready Helm chart for deploying Spinnaker CD platform on Kubernetes.
 
-## Chart Details
-This chart will provision a fully functional and fully featured Spinnaker installation
-that can deploy and manage applications in the cluster that it is deployed to.
+## Architecture
 
-Redis and Minio are used as the stores for Spinnaker state.
+```mermaid
+graph TB
+    subgraph "Kubernetes Cluster"
+        subgraph "Spinnaker Namespace"
+            Halyard["Halyard StatefulSet<br/>(Configuration Manager)"]
 
-For more information on Spinnaker and its capabilities, see it's [documentation](http://www.spinnaker.io/docs).
+            subgraph "Spinnaker Microservices"
+                Deck["Deck<br/>(UI - :9000)"]
+                Gate["Gate<br/>(API Gateway - :8084)"]
+                Orca["Orca<br/>(Orchestrator)"]
+                Clouddriver["Clouddriver<br/>(Cloud Provider)"]
+                Front50["Front50<br/>(Metadata Store)"]
+                Echo["Echo<br/>(Notifications)"]
+                Igor["Igor<br/>(CI Integration)"]
+                Rosco["Rosco<br/>(Image Bakery)"]
+            end
 
-## Installing the Chart
+            Redis["Redis<br/>(Cache)"]
 
-To install the chart with the release name `my-release`:
+            Halyard -->|manages| Deck
+            Halyard -->|manages| Gate
+            Halyard -->|manages| Orca
+            Halyard -->|manages| Clouddriver
+            Halyard -->|manages| Front50
+            Halyard -->|manages| Echo
+            Halyard -->|manages| Igor
+            Halyard -->|manages| Rosco
+        end
+
+        RBAC["RBAC / ServiceAccounts"]
+        RBAC -->|authorizes| Halyard
+        RBAC -->|authorizes| Clouddriver
+    end
+
+    subgraph "Ingress"
+        DeckIngress["Deck Ingress<br/>(spinnaker.example.com)"]
+        GateIngress["Gate Ingress<br/>(gate.spinnaker.example.com)"]
+    end
+
+    DeckIngress --> Deck
+    GateIngress --> Gate
+
+    subgraph "External Services"
+        S3["S3 / Minio<br/>(Persistent Storage)"]
+        GCS["GCS<br/>(Persistent Storage)"]
+        ECR["ECR / Docker Registry"]
+        SAML["SAML IdP<br/>(Authentication)"]
+    end
+
+    Front50 --> S3
+    Front50 --> GCS
+    Clouddriver --> ECR
+    Gate --> SAML
+
+    User["User / Browser"] --> DeckIngress
+    User --> GateIngress
+```
+
+## Features
+
+- **Halyard-managed deployment** - Uses Halyard StatefulSet for reliable configuration management
+- **Multi-backend storage** - Supports S3, GCS, Minio, and Azure Storage
+- **Docker registry integration** - ECR, GCR, Docker Hub, and private registries
+- **RBAC and ServiceAccounts** - Fine-grained Kubernetes RBAC with dedicated service accounts
+- **Ingress routing** - Configurable Ingress for Deck (UI) and Gate (API) with TLS support
+- **SAML authentication** - Built-in SAML SSO configuration via Halyard scripts
+- **Extensible configuration** - Additional scripts, secrets, config maps, and profile overrides
+- **Feature flags** - Toggle Spinnaker features (artifacts, jobs, pipeline-templates, etc.)
+
+## Prerequisites
+
+- Kubernetes cluster (v1.19+)
+- Helm 3.x
+- A storage backend (S3, GCS, or Minio for local dev)
+- (Optional) Docker registry credentials for private images
+- (Optional) SAML IdP metadata for SSO
+
+## Installation
+
+### Quick Start (Local Development with Minio)
 
 ```bash
-$ helm install --name my-release stable/spinnaker --timeout 600
+helm install spinnaker ./spinnaker -f examples/values-minimal.yaml \
+  --namespace spinnaker --create-namespace \
+  --timeout 10m
 ```
 
-Note that this chart pulls in many different Docker images so can take a while to fully install.
-
-## Configuration
-
-Configurable values are documented in the `values.yaml`.
-
-Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`.
-
-Alternatively, a YAML file that specifies the values for the parameters can be provided while installing the chart. For example,
+### AWS (S3 + ECR)
 
 ```bash
-$ helm install --name my-release -f values.yaml stable/spinnaker
+helm install spinnaker ./spinnaker -f examples/values-aws.yaml \
+  --namespace spinnaker --create-namespace \
+  --set s3.accessKey=YOUR_ACCESS_KEY \
+  --set s3.secretKey=YOUR_SECRET_KEY \
+  --timeout 10m
 ```
 
-> **Tip**: You can use the default [values.yaml](values.yaml)
+### GCS
 
-## Adding Kubernetes Clusters to Spinnaker
-
-By default, installing the chart only registers the local cluster as a deploy target
-for Spinnaker. If you want to add arbitrary clusters need to do the following:
-
-1. Upload your kubeconfig to a secret with the key `config` in the cluster you are installing Spinnaker to.
-
-    ```shell
-    $ kubectl create secret generic --from-file=$HOME/.kube/config my-kubeconfig
-    ```
-
-1. Set the following values of the chart:
-
-    ```yaml
-    kubeConfig:
-      enabled: true
-      secretName: my-kubeconfig
-      secretKey: config
-      contexts:
-      # Names of contexts available in the uploaded kubeconfig
-      - my-context
-      # This is the context from the list above that you would like
-      # to deploy Spinnaker itself to.
-      deploymentContext: my-context
-    ```
-
-## Specifying Docker Registries and Valid Images (Repositories)
-
-Spinnaker will only give you access to Docker images that have been whitelisted, if you're using a private registry or a private repository you also need to provide credentials.  Update the following values of the chart to do so:
-
-```yaml
-dockerRegistries:
-- name: dockerhub
-  address: index.docker.io
-  repositories:
-    - library/alpine
-    - library/ubuntu
-    - library/centos
-    - library/nginx
-# - name: gcr
-#   address: https://gcr.io
-#   username: _json_key
-#   password: '<INSERT YOUR SERVICE ACCOUNT JSON HERE>'
-#   email: 1234@5678.com
+```bash
+helm install spinnaker ./spinnaker -f examples/values-gcs.yaml \
+  --namespace spinnaker --create-namespace \
+  --set gcs.jsonKey="$(cat /path/to/service-account.json)" \
+  --timeout 10m
 ```
 
-You can provide passwords as a Helm value, or you can use a pre-created secret containing your registry passwords.  The secret should have an item per Registry in the format: `<registry name>: <password>`. In which case you'll specify the secret to use in `dockerRegistryAccountSecret` like so:
+### Access the UI
 
-```yaml
-dockerRegistryAccountSecret: myregistry-secrets
+```bash
+# Port-forward Deck (UI)
+export DECK_POD=$(kubectl get pods -n spinnaker -l "cluster=spin-deck" -o jsonpath="{.items[0].metadata.name}")
+kubectl port-forward -n spinnaker $DECK_POD 9000
+
+# Open http://127.0.0.1:9000
 ```
 
-## Specifying persistent storage
+## Configuration Reference
 
-Spinnaker supports [many](https://www.spinnaker.io/setup/install/storage/) persistent storage types. Currently, this chart supports the following:
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `halyard.spinnakerVersion` | Spinnaker version to deploy | `1.11.6` |
+| `halyard.image.repository` | Halyard container image | `gcr.io/spinnaker-marketplace/halyard` |
+| `halyard.image.tag` | Halyard image tag | `1.13.1` |
+| `dockerRegistries` | List of Docker registries to configure | `[]` |
+| `minio.enabled` | Enable Minio for local S3 storage | `true` |
+| `minio.accessKey` | Minio access key | `changeme-minio-access` |
+| `minio.secretKey` | Minio secret key | `changeme-minio-password` |
+| `s3.enabled` | Enable AWS S3 storage backend | `false` |
+| `s3.bucket` | S3 bucket name | `""` |
+| `s3.region` | AWS region | `""` |
+| `gcs.enabled` | Enable Google Cloud Storage | `false` |
+| `gcs.project` | GCP project name | `""` |
+| `gcs.bucket` | GCS bucket name | `""` |
+| `ingress.enabled` | Enable Ingress for Deck (UI) | `false` |
+| `ingress.host` | Hostname for Deck | `""` |
+| `ingressGate.enabled` | Enable Ingress for Gate (API) | `false` |
+| `ingressGate.host` | Hostname for Gate | `""` |
+| `rbac.create` | Create RBAC resources | `true` |
+| `serviceAccount.create` | Create ServiceAccounts | `true` |
+| `redis.password` | Redis password | `changeme-redis-password` |
+| `spinnakerFeatureFlags` | List of Spinnaker features to enable | `[artifacts, jobs]` |
+| `kubeConfig.enabled` | Use external kubeconfig for multi-cluster | `false` |
+| `halyard.additionalScripts.enabled` | Enable additional Halyard config scripts | `false` |
+| `halyard.additionalSecrets.create` | Create additional secrets (e.g., SAML keystores) | `false` |
 
-* Azure Storage
-* Google Cloud Storage
-* Minio (local S3-compatible object store)
-* Redis
-* AWS S3
+See [`values.yaml`](values.yaml) for the complete list of configurable parameters.
 
-## Customizing your installation
+## Architecture Decisions
 
-### Manual
-While the default installation is ready to handle your Kubernetes deployments, there are
-many different integrations that you can turn on with Spinnaker. In order to customize
-Spinnaker, you can use the [Halyard](https://www.spinnaker.io/reference/halyard/) command line `hal`
-to edit the configuration and apply it to what has already been deployed.
+- **Halyard as StatefulSet**: Halyard manages Spinnaker's lifecycle and stores configuration in a PersistentVolume, ensuring config survives pod restarts and upgrades.
+- **Redis as cache**: An in-cluster Redis instance is deployed as a dependency for Spinnaker's caching layer. It is not exposed externally.
+- **Hook-based deployment**: Helm post-install/post-upgrade hooks trigger `hal deploy apply` to roll out Spinnaker microservices after Halyard is ready.
+- **Modular storage**: Storage backends are mutually configurable -- enable only one of Minio, S3, GCS, or Azure Storage.
+- **SAML via additional scripts**: SAML authentication is configured through Halyard's `additionalScripts` mechanism, keeping auth config separate from core chart logic. See [`values_saml.yaml`](values_saml.yaml) for a complete example.
 
-Halyard has an in-cluster daemon that stores your configuration. You can exec a shell in this pod to
-make and apply your changes. The Halyard daemon is configured with a persistent volume to ensure that
-your configuration data persists any node failures, reboots or upgrades.
+## Adding Kubernetes Clusters
 
-For example:
+By default, only the local cluster is registered as a deployment target. To add remote clusters:
 
-```shell
-$ helm install -n cd stable/spinnaker
-$ kubectl exec -it cd-spinnaker-halyard-0 bash
-spinnaker@cd-spinnaker-halyard-0:/workdir$ hal version list
+1. Upload your kubeconfig as a secret:
+   ```bash
+   kubectl create secret generic my-kubeconfig --from-file=$HOME/.kube/config -n spinnaker
+   ```
+
+2. Configure the chart:
+   ```yaml
+   kubeConfig:
+     enabled: true
+     secretName: my-kubeconfig
+     secretKey: config
+     contexts:
+       - my-remote-cluster
+     deploymentContext: my-remote-cluster
+   ```
+
+## Upgrade Guide
+
+### From Helm 2 to Helm 3
+
+This chart uses Helm 3 (`apiVersion: v2`). If migrating from a Helm 2 installation:
+
+1. Install the [helm-2to3](https://github.com/helm/helm-2to3) plugin
+2. Migrate your release: `helm 2to3 convert spinnaker`
+3. Upgrade: `helm upgrade spinnaker ./spinnaker -f your-values.yaml`
+
+### Upgrading Spinnaker Version
+
+Update the `halyard.spinnakerVersion` value and run:
+
+```bash
+helm upgrade spinnaker ./spinnaker --set halyard.spinnakerVersion=NEW_VERSION --timeout 10m
 ```
 
-### Automated
-If you have known set of commands that you'd like to run after the base config steps or if
-you'd like to override some settings before the Spinnaker deployment is applied, you can enable
-the `halyard.additionalScripts.enabled` flag. You will need to create a config map that contains a key
-containing the `hal` commands you'd like to run. You can set the key via the config map name via `halyard.additionalScripts.configMapName` and the key via `halyard.additionalScripts.configMapKey`. The `DAEMON_ENDPOINT` environment variable can be used in your custom commands to
-get a prepopulated URL that points to your Halyard daemon within the cluster. The `HAL_COMMAND` environment variable does this for you. For example:
+## Contributing
 
-```shell
-hal --daemon-endpoint $DAEMON_ENDPOINT config security authn oauth2 enable
-$HAL_COMMAND config security authn oauth2 enable
-```
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Make your changes and test with `helm lint` and `helm template`
+4. Submit a pull request
 
-If you would rather the chart make the config file for you, you can set `halyard.additionalScripts.create` to `true` and then populate `halyard.additionalScripts.data.SCRIPT_NAME.sh` with the bash script you'd like to run. If you need associated configmaps or secrets you can configure those to be created as well:
+## License
 
-```yaml
-halyard:
-  additionalScripts:
-    create: true
-    data: 
-      enable_oauth.sh: |-
-        echo "Setting oauth2 security"
-        $HAL_COMMAND config security authn oauth2 enable
-  additionalSecrets:
-    create: true
-    data:
-      password.txt: aHVudGVyMgo=    
-  additionalConfigMaps:
-    create: true
-    data:
-      metadata.xml: <xml><username>admin</username></xml>
-  additionalProfileConfigMaps:
-    create: true
-    data:
-      orca-local.yml: |-
-        tasks:
-          useManagedServiceAccounts: true
-```
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

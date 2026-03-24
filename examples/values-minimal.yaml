@@ -1,0 +1,40 @@
+# Minimal local development configuration for Spinnaker
+# Uses Minio as a local S3-compatible object store
+# Usage: helm install spinnaker ./spinnaker -f examples/values-minimal.yaml
+
+# Minio for local S3-compatible storage (default enabled)
+minio:
+  enabled: true
+  accessKey: changeme-minio-access
+  secretKey: changeme-minio-password
+  bucket: "spinnaker"
+
+# No cloud storage backends needed
+s3:
+  enabled: false
+
+gcs:
+  enabled: false
+
+# Basic Docker Hub registry
+dockerRegistries:
+  - name: dockerhub
+    address: index.docker.io
+    repositories:
+      - library/alpine
+      - library/nginx
+      - library/ubuntu
+
+# No ingress for local development - use port-forward instead
+# kubectl port-forward svc/spin-deck 9000:9000
+ingress:
+  enabled: false
+
+ingressGate:
+  enabled: false
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true

@@ -1,0 +1,55 @@
+# AWS S3 + ECR configuration for Spinnaker
+# Usage: helm install spinnaker ./spinnaker -f examples/values-aws.yaml
+
+# Disable Minio when using S3 for storage
+minio:
+  enabled: false
+
+# S3 storage backend
+s3:
+  enabled: true
+  bucket: "my-spinnaker-storage"
+  rootFolder: "front50"
+  region: "us-east-1"
+  # Provide credentials via Kubernetes secret or IAM role
+  # accessKey: ""
+  # secretKey: ""
+
+# ECR Docker registry
+dockerRegistries:
+  - name: my-ecr-registry
+    address: https://123456789012.dkr.ecr.us-east-1.amazonaws.com
+    username: AWS
+    # Use a password file populated by a sidecar or init container
+    # that periodically refreshes the ECR token
+    password: /opt/passwords/ecr-registry.pass
+
+# Enable ingress for external access
+ingress:
+  enabled: true
+  host: spinnaker.example.com
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: spinnaker-deck-tls
+      hosts:
+        - spinnaker.example.com
+
+ingressGate:
+  enabled: true
+  host: gate.spinnaker.example.com
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: spinnaker-gate-tls
+      hosts:
+        - gate.spinnaker.example.com
+
+# RBAC and service accounts
+rbac:
+  create: true
+
+serviceAccount:
+  create: true

@@ -1,0 +1,51 @@
+# Google Cloud Storage configuration for Spinnaker
+# Usage: helm install spinnaker ./spinnaker -f examples/values-gcs.yaml
+
+# Disable Minio when using GCS for storage
+minio:
+  enabled: false
+
+# GCS storage backend
+gcs:
+  enabled: true
+  project: my-gcp-project
+  bucket: "my-spinnaker-storage"
+  # Provide GCS service account JSON key
+  # jsonKey: '<INSERT CLOUD STORAGE JSON HERE>'
+  # Or reference an existing secret
+  # secretName: spinnaker-gcs-key
+
+# Docker registry (GCR example)
+dockerRegistries:
+  - name: my-gcr-registry
+    address: https://gcr.io
+    username: _json_key
+    # password: '<INSERT YOUR SERVICE ACCOUNT JSON HERE>'
+    # email: user@example.com
+
+# Enable ingress for external access
+ingress:
+  enabled: true
+  host: spinnaker.example.com
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  tls:
+    - secretName: spinnaker-deck-tls
+      hosts:
+        - spinnaker.example.com
+
+ingressGate:
+  enabled: true
+  host: gate.spinnaker.example.com
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  tls:
+    - secretName: spinnaker-gate-tls
+      hosts:
+        - gate.spinnaker.example.com
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
