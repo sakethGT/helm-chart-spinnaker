@@ -1,0 +1,131 @@
+flowchart TD
+    %% User Entry
+    User["👤 User / Browser"]
+
+    subgraph INGRESS["Ingress Layer"]
+        direction LR
+        NginxDeck["NGINX Ingress<br/>spinnaker.example.com"]
+        NginxGate["NGINX Ingress<br/>gate.spinnaker.example.com"]
+    end
+
+    subgraph AUTH["Authentication & Authorization"]
+        direction LR
+        SAML["SAML IdP"]
+        OAuth["OAuth2 Provider"]
+    end
+
+    subgraph K8S["Kubernetes Cluster"]
+        subgraph RBAC["RBAC"]
+            SA["ServiceAccount"]
+            CR["ClusterRole /<br/>ClusterRoleBinding"]
+        end
+
+        subgraph HALYARD["Halyard StatefulSet"]
+            Hal["Halyard<br/>Configuration Manager<br/>PersistentVolume"]
+        end
+
+        subgraph SERVICES["Spinnaker Microservices"]
+            Deck["Deck<br/>UI · :9000"]
+            Gate["Gate<br/>API Gateway · :8084"]
+            Orca["Orca<br/>Orchestration Engine"]
+            Clouddriver["Clouddriver<br/>Cloud Provider Interface"]
+            Front50["Front50<br/>Metadata & Pipelines"]
+            Echo["Echo<br/>Notifications & Events"]
+            Igor["Igor<br/>CI Integration"]
+            Rosco["Rosco<br/>Image Bakery"]
+        end
+
+        Redis["Redis<br/>Cache Layer"]
+    end
+
+    subgraph STORAGE["Storage Backends (selectable)"]
+        direction LR
+        S3["Amazon S3"]
+        GCS["Google Cloud Storage"]
+        Minio["Minio<br/>Self-hosted S3"]
+    end
+
+    subgraph REGISTRY["Docker Registry"]
+        ECR["AWS ECR"]
+    end
+
+    %% User flow
+    User --> NginxDeck
+    User --> NginxGate
+
+    %% Ingress routing
+    NginxDeck --> Deck
+    NginxGate --> Gate
+
+    %% Auth flow
+    Gate --> SAML
+    Gate --> OAuth
+
+    %% RBAC bindings
+    SA --> Hal
+    SA --> Clouddriver
+    CR --> SA
+
+    %% Halyard manages all services
+    Hal -->|deploys & configures| Deck
+    Hal -->|deploys & configures| Gate
+    Hal -->|deploys & configures| Orca
+    Hal -->|deploys & configures| Clouddriver
+    Hal -->|deploys & configures| Front50
+    Hal -->|deploys & configures| Echo
+    Hal -->|deploys & configures| Igor
+    Hal -->|deploys & configures| Rosco
+
+    %% Service interactions
+    Gate --> Orca
+    Gate --> Clouddriver
+    Gate --> Front50
+    Orca --> Clouddriver
+    Orca --> Front50
+    Echo --> Orca
+    Igor --> Echo
+
+    %% Storage connections
+    Front50 --> S3
+    Front50 --> GCS
+    Front50 --> Minio
+
+    %% Registry connections
+    Clouddriver --> ECR
+    Rosco --> ECR
+
+    %% Redis caching
+    Orca --> Redis
+    Clouddriver --> Redis
+    Gate --> Redis
+
+    %% Styles
+    style User fill:#c9d1d9,stroke:#8b949e,color:#0d1117
+    style INGRESS fill:#1a1a2e,stroke:#30363d,color:#c9d1d9
+    style NginxDeck fill:#326ce5,stroke:#1a3a6e,color:#fff
+    style NginxGate fill:#326ce5,stroke:#1a3a6e,color:#fff
+    style AUTH fill:#1a1a2e,stroke:#30363d,color:#c9d1d9
+    style SAML fill:#8957e5,stroke:#6e40c9,color:#fff
+    style OAuth fill:#8957e5,stroke:#6e40c9,color:#fff
+    style K8S fill:#0d1117,stroke:#326ce5,color:#c9d1d9
+    style RBAC fill:#161b22,stroke:#30363d,color:#c9d1d9
+    style SA fill:#326ce5,stroke:#1a3a6e,color:#fff
+    style CR fill:#326ce5,stroke:#1a3a6e,color:#fff
+    style HALYARD fill:#161b22,stroke:#30363d,color:#c9d1d9
+    style Hal fill:#326ce5,stroke:#1a3a6e,color:#fff
+    style SERVICES fill:#161b22,stroke:#30363d,color:#c9d1d9
+    style Deck fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Gate fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Orca fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Clouddriver fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Front50 fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Echo fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Igor fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Rosco fill:#00b4d8,stroke:#0096b7,color:#fff
+    style Redis fill:#dc3545,stroke:#a71d2a,color:#fff
+    style STORAGE fill:#1a1a2e,stroke:#30363d,color:#c9d1d9
+    style S3 fill:#ff9900,stroke:#cc7a00,color:#fff
+    style GCS fill:#ff9900,stroke:#cc7a00,color:#fff
+    style Minio fill:#ff9900,stroke:#cc7a00,color:#fff
+    style REGISTRY fill:#1a1a2e,stroke:#30363d,color:#c9d1d9
+    style ECR fill:#ff9900,stroke:#cc7a00,color:#fff

@@ -4,63 +4,9 @@ Production-ready Helm chart for deploying Spinnaker CD platform on Kubernetes.
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph "Kubernetes Cluster"
-        subgraph "Spinnaker Namespace"
-            Halyard["Halyard StatefulSet<br/>(Configuration Manager)"]
-
-            subgraph "Spinnaker Microservices"
-                Deck["Deck<br/>(UI - :9000)"]
-                Gate["Gate<br/>(API Gateway - :8084)"]
-                Orca["Orca<br/>(Orchestrator)"]
-                Clouddriver["Clouddriver<br/>(Cloud Provider)"]
-                Front50["Front50<br/>(Metadata Store)"]
-                Echo["Echo<br/>(Notifications)"]
-                Igor["Igor<br/>(CI Integration)"]
-                Rosco["Rosco<br/>(Image Bakery)"]
-            end
-
-            Redis["Redis<br/>(Cache)"]
-
-            Halyard -->|manages| Deck
-            Halyard -->|manages| Gate
-            Halyard -->|manages| Orca
-            Halyard -->|manages| Clouddriver
-            Halyard -->|manages| Front50
-            Halyard -->|manages| Echo
-            Halyard -->|manages| Igor
-            Halyard -->|manages| Rosco
-        end
-
-        RBAC["RBAC / ServiceAccounts"]
-        RBAC -->|authorizes| Halyard
-        RBAC -->|authorizes| Clouddriver
-    end
-
-    subgraph "Ingress"
-        DeckIngress["Deck Ingress<br/>(spinnaker.example.com)"]
-        GateIngress["Gate Ingress<br/>(gate.spinnaker.example.com)"]
-    end
-
-    DeckIngress --> Deck
-    GateIngress --> Gate
-
-    subgraph "External Services"
-        S3["S3 / Minio<br/>(Persistent Storage)"]
-        GCS["GCS<br/>(Persistent Storage)"]
-        ECR["ECR / Docker Registry"]
-        SAML["SAML IdP<br/>(Authentication)"]
-    end
-
-    Front50 --> S3
-    Front50 --> GCS
-    Clouddriver --> ECR
-    Gate --> SAML
-
-    User["User / Browser"] --> DeckIngress
-    User --> GateIngress
-```
+<p align="center">
+  <img src="docs/architecture.svg" alt="Spinnaker Deployment Architecture" width="100%">
+</p>
 
 ## Features
 
